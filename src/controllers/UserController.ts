@@ -1,32 +1,58 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../database/dataBase";
+import { getRepository } from "typeorm";
 import { GroceryItem } from "../models/GroceryItem";
+import { Order } from "../models/Order";
+import { AppDataSource } from "../database/dataBase";
 
-export const UserController = {
-  // View all items
-  viewItems: async (_req: Request, res: Response): Promise<void> => {
-    try {
-      const items = await AppDataSource.getRepository(GroceryItem).find();
-      res.status(200).json(items);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching items", error });
-    }
-  },
+export const getAllGroceryItems = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const groceryRepo = AppDataSource.getRepository(GroceryItem);
+    const groceries = await groceryRepo.find();
+    res.status(200).json(groceries);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch grocery items" });
+  }
+};
 
-  // Book multiple items
-  bookItems: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { itemIds } = req.body;
-      const items = await AppDataSource.getRepository(GroceryItem).findByIds(
-        itemIds
-      );
-      if (items.length === 0) {
-        res.status(404).json({ message: "No items found" });
-        return;
+export const placeOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { userId, items } = req.body;
+    const groceryRepository = AppDataSource.getRepository(GroceryItem);
+    const orderRepository = AppDataSource.getRepository(Order);
+
+    // Calculate total price for the order
+    let totalPrice = 0;
+    for (const item of items) {
+      const groceryItem = await groceryRepository.findOne({
+        where: { id: item.id },
+      });
+      if (groceryItem) {
+        totalPrice += groceryItem.price * item.quantity;
       }
-      res.status(200).json({ message: "Items booked successfully", items });
-    } catch (error) {
-      res.status(500).json({ message: "Error booking items", error });
     }
-  },
+
+    // Create new order
+    const newOrder = new Order();
+    newOrder.userId = userId;
+    newOrder.items = items;
+    newOrder.totalPrice = totalPrice;
+
+    // Save the order to the database
+    await orderRepository.save(newOrder);
+
+    // Send success response
+    res.status(201).json({
+      message: "Order placed successfully",
+      order: newOrder,
+    });
+  } catch (error) {
+    console.error("Order placement failed:", error);
+    res.status(500).json({ error: "Failed to place order" });
+  }
 };

@@ -1,9 +1,14 @@
-import express from "express";
-import { UserController } from "../controllers/UserController";
+import { Router } from "express";
+import { getAllGroceryItems, placeOrder } from "../controllers/UserController";
+import { validate } from "../middleware/validate";
+import { placeOrderSchema } from "../validators/userValidator";
 
-const router = express.Router();
+const router = Router();
 
-router.get("/items", UserController.viewItems);
-router.post("/book", UserController.bookItems);
+// Route to get all available grocery items
+router.get("/groceries", getAllGroceryItems);
+
+// Route to place an order
+router.post("/order", validate(placeOrderSchema), placeOrder);
 
 export default router;

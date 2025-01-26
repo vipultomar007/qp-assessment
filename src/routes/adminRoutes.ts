@@ -1,11 +1,33 @@
 import express from "express";
-import { AdminController } from "../controllers/AdminController";
+import {
+  addGrocery,
+  deleteGrocery,
+  viewGroceries,
+  updateGrocery,
+  patchInventory,
+} from "../controllers/AdminController";
+import { validate } from "../middleware/validate";
+import {
+  addGroceryItemSchema,
+  updateGroceryItemSchema,
+  patchInventorySchema,
+} from "../validators/adminValidator";
 
 const router = express.Router();
 
-router.post("/items", AdminController.addItem);
-router.get("/items", AdminController.getItems);
-router.put("/items/:id", AdminController.updateItem);
-router.delete("/items/:id", AdminController.deleteItem);
+// Add a new grocery item
+router.post("/addItems", validate(addGroceryItemSchema), addGrocery);
+
+// Delete a grocery item
+router.delete("/delete/:id", deleteGrocery);
+
+// View all grocery items
+router.get("/items", viewGroceries);
+
+// Update grocery details (name, price, description)
+router.patch("/update/:id", validate(updateGroceryItemSchema), updateGrocery);
+
+// Patch inventory details (quantity)
+router.patch("/inventory/:id", validate(patchInventorySchema), patchInventory);
 
 export default router;

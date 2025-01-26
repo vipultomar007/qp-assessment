@@ -1,60 +1,126 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { AppDataSource } from "../database/dataBase";
 import { GroceryItem } from "../models/GroceryItem";
 
-export const AdminController = {
-  // Add new item
-  addItem: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const item = AppDataSource.getRepository(GroceryItem).create(req.body);
-      const result = await AppDataSource.getRepository(GroceryItem).save(item);
-      res.status(201).json(result);
-    } catch (error) {
-      res.status(500).json({ message: "Error adding item", error });
-    }
-  },
+// Add a new grocery item
+export const addGrocery = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const groceryRepo = AppDataSource.getRepository(GroceryItem);
+    const { name, price, description, quantity } = req.body;
 
-  // Get all items
-  getItems: async (_req: Request, res: Response): Promise<void> => {
-    try {
-      const items = await AppDataSource.getRepository(GroceryItem).find();
-      res.status(200).json(items);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching items", error });
-    }
-  },
+    const newGrocery = groceryRepo.create({
+      name,
+      price,
+      description,
+      quantity,
+    });
+    await groceryRepo.save(newGrocery);
 
-  // Update an existing item
-  updateItem: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const item = await AppDataSource.getRepository(GroceryItem).findOneBy({
-        id: parseInt(req.params.id),
-      });
-      if (!item) {
-        res.status(404).json({ message: "Item not found" });
-        return;
-      }
-      AppDataSource.getRepository(GroceryItem).merge(item, req.body);
-      const result = await AppDataSource.getRepository(GroceryItem).save(item);
-      res.status(200).json(result);
-    } catch (error) {
-      res.status(500).json({ message: "Error updating item", error });
-    }
-  },
+    res.status(201).json({
+      message: "Grocery item added successfully",
+      grocery: newGrocery,
+    });
+  } catch (err) {
+    next(err); // Use next() to pass errors to Express's error handler
+  }
+};
 
-  // Delete an existing item
-  deleteItem: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const result = await AppDataSource.getRepository(GroceryItem).delete(
-        req.params.id
-      );
-      if (result.affected === 0) {
-        res.status(404).json({ message: "Item not found" });
-        return;
-      }
-      res.status(200).json({ message: "Item deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Error deleting item", error });
+// Delete a grocery item
+export const deleteGrocery = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const groceryRepo = AppDataSource.getRepository(GroceryItem);
+  const { id } = req.params;
+
+  try {
+    const grocery = await groceryRepo.findOneBy({ id: parseInt(id, 10) });
+    if (!grocery) {
+      res.status(404).json({ message: "Grocery item not found" });
+      return;
     }
-  },
+
+    await groceryRepo.remove(grocery);
+    res.status(200).json({ message: "Grocery item deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// View all grocery items
+export const viewGroceries = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const groceryRepo = AppDataSource.getRepository(GroceryItem);
+
+  try {
+    const groceries = await groceryRepo.find();
+    res.status(200).json({ groceries });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update grocery details (name, price, description)
+export const updateGrocery = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const groceryRepo = AppDataSource.getRepository(GroceryItem);
+  const { id } = req.params;
+  const { name, price, description } = req.body;
+
+  try {
+    const grocery = await groceryRepo.findOneBy({ id: parseInt(id, 10) });
+    if (!grocery) {
+      res.status(404).json({ message: "Grocery item not found" });
+      return;
+    }
+
+    if (name) grocery.name = name;
+    if (price !== undefined) grocery.price = price;
+    if (description) grocery.description = description;
+    await groceryRepo.save(grocery);
+    res
+      .status(200)
+      .json({ message: "Grocery item updated successfully", grocery });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Patch inventory details (quantity)
+export const patchInventory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const groceryRepo = AppDataSource.getRepository(GroceryItem);
+  const { id } = req.params;
+  const { quantity } = req.body;
+
+  try {
+    const grocery = await groceryRepo.findOneBy({ id: parseInt(id, 10) });
+    if (!grocery) {
+      res.status(404).json({ message: "Grocery item not found" });
+      return;
+    }
+    if (quantity !== undefined) {
+      grocery.quantity = quantity;
+    }
+    await groceryRepo.save(grocery);
+    res
+      .status(200)
+      .json({ message: "Inventory updated successfully", grocery });
+  } catch (error) {
+    next(error);
+  }
 };
